@@ -1,8 +1,3 @@
-Deixa eu confirmar uma coisa técnica antes de te entregar o briefing + correções — o sintoma (HTML aparecendo como texto) tem uma causa clássica no Scribunto que preciso verificar para corrigir do jeito certo:A busca confirmou o mecanismo do bug — mas preciso confirmar um detalhe final na lista oficial de tags permitidas:Confirmado — causa raiz encontrada, e ela explica exatamente o que você viu:
-
-**A tag `<a>` NÃO está na whitelist de HTML do MediaWiki** (o `Sanitizer` só permite `div`, `span`, `table`, `details`, `ul`, etc.). Qualquer `<a href="...">` que o módulo emitia foi **mostrado como texto puro** — por isso os links da Doctoralia, do WhatsApp e das publicações apareceram "quebrados" enquanto o resto ficou bonito. A correção é usar a sintaxe oficial de link externo do wikitext (`[URL texto]`), que o parser converte em `<a>` **na saída final** — sempre renderiza.
-
-Segue o que você pediu: **o briefing completo** + **o módulo v2 com todas as correções**.
 
 ---
 
