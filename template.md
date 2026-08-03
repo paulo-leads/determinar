@@ -1,7 +1,7 @@
 
 ---
 
-## 📋 BRIEFING — Projeto "Wikipédia de Médicos" (determinar.ia.br)
+## 📋 BRIEFING — Projeto "Wikipédia de Médicos e Profissionais Liberais PMES" (determinar.ia.br)
 
 > **Uso:** colar em `Project:Handoff` na sua wiki (ou guardar fora) para outra IA retomar de onde paramos. Gerado em 2026-08-03.
 
@@ -9,7 +9,7 @@
 # BRIEFING — Projeto Wikipédia de Médicos (determinar.ia.br)
 
 ## 1. Objetivo
-"Wikipedia de médicos" paga: Wikibase como backend de dados estruturados (editado no
+"Wikipedia sem Viéis de editores minorias e leigos" premium: RDF SKOS como backend de dados estruturados (editado no
 desktop) + página MediaWiki renderizada com design elegante e responsivo no celular do
 médico. Entidade-modelo: Q1 (Dr. Marco Tulio Souza, cardiologista, Campinas/SP).
 
