@@ -368,13 +368,13 @@ bash curadoria_avancada_q1292.sh
 #### 4. Produção Científica, Publicações e Evidências
 
 * **Termos:** `'Cardiac Magnetic Resonance Imaging in Fabry Disease'`, `'Possíveis Mecanismos dos Inibidores de SGLT2 na Insuficiência Cardíaca (ABC Heart Fail Cardiomyop. 2021; 1(1):33-43)'`, `'Capítulo sobre Métodos de Imagem Cardíaca (INSUFIC...'`
-* **Encaixe Ontológico:** Publicações científicas, artigos e referências bibliográficas vinculadas ao perfil do médico (`P77` - *Scientific Publications* / `P52` - *Bibliographic Reference*).
+* **Encaixe Ontológico:** Como Engenheiro de Dados e Ontologista C-level, o próximo passo imediato é injetar as publicações científicas da Dra. Camila (Q1292) utilizando a nova propriedade P94, aplicando rigorosamente a verificação antidedup (case-insensitive) e zero uso de P79.
 
 
-cat > curadoria_convenios_publicacoes_q1292.sh << 'BASH_EOF'
+cat > injetar_pubs_p94_q1292.sh << 'BASH_EOF'
 #!/bin/bash
 # ==============================================================================
-# INGESTOR WIKIVENDAS/DETERMINAR - Convênios e Publicações Q1292 (Antidedup & No P79)
+# INGESTOR WIKIVENDAS/DETERMINAR - Injeção de Publicações em P94 (Q1292)
 # ==============================================================================
 set -euo pipefail
 
@@ -383,11 +383,10 @@ import requests
 import json
 import time
 import unicodedata
-import re
 
 API_URL = "https://determinar.ia.br/w/api.php"
-BOT_USER = "Determinaradmin"
-BOT_PASS = "65d5b021bc5bf3ad160079f5"
+BOT_USER = "Dsssn"
+BOT_PASS = "6s"
 TARGET_QID = "Q1292"
 DATA_COLETA = time.strftime("%Y-%m-%d")
 
@@ -413,33 +412,6 @@ def fold(s):
     s = unicodedata.normalize("NFKD", str(s)).encode("ASCII", "ignore").decode("ASCII")
     return " ".join(s.split()).lower()
 
-def resolver_ou_criar_entidade(session, csrf, nome_entidade, descricao="Entidade do grafo semântico"):
-    alvo_normalizado = fold(nome_entidade)
-    
-    res = session.get(API_URL, params={"action": "wbsearchentities", "search": nome_entidade, "language": "pt-br", "format": "json", "limit": 5}).json()
-    for item in res.get("search", []):
-        if fold(item.get("label", "")) == alvo_normalizado or any(fold(a) == alvo_normalizado for a in item.get("aliases", [])):
-            return int(item["id"].replace("Q", ""))
-            
-    print(f"  ℹ️ Entidade '{nome_entidade}' não encontrada no grafo. Criando nova...")
-    data_criacao = {
-        "labels": {"pt-br": {"language": "pt-br", "value": nome_entidade}, "mul": {"language": "mul", "value": nome_entidade}},
-        "descriptions": {"pt-br": {"language": "pt-br", "value": descricao}}
-    }
-    resp_create = session.post(API_URL, data={
-        "action": "wbeditentity", "new": "item", "data": json.dumps(data_criacao), "token": csrf, "format": "json"
-    }).json()
-    
-    if "entity" in resp_create:
-        novo_qid = resp_create["entity"]["id"]
-        print(f"  ✅ Criada com sucesso: {novo_qid} -> {nome_entidade}")
-        return int(novo_qid.replace("Q", ""))
-    else:
-        res_retry = session.get(API_URL, params={"action": "wbsearchentities", "search": nome_entidade, "language": "pt-br", "format": "json", "limit": 1}).json()
-        if res_retry.get("search", []):
-            return int(res_retry["search"][0]["id"].replace("Q", ""))
-        return None
-
 print(f"==> 2. Carregando dados atuais da entidade {TARGET_QID}...")
 r_ent = session.get(API_URL, params={"action": "wbgetentities", "ids": TARGET_QID, "format": "json"}).json()
 entity_data = r_ent.get("entities", {}).get(TARGET_QID, {})
@@ -450,14 +422,15 @@ base_quals = {
     "P80": [{"snaktype": "value", "property": "P80", "datavalue": {"value": {"time": f"+{DATA_COLETA}T00:00:00Z", "timezone": 0, "before": 0, "after": 0, "precision": 11, "calendarmodel": "http://www.wikidata.org/entity/Q1985727"}, "type": "time"}}]
 }
 
-def adicionar_claim_string_se_nao_existe(propriedade, valor_string, qualifiers=None):
+def adicionar_claim_string_se_nao_existe(propriedade, valor_string):
     if propriedade not in claims:
         claims[propriedade] = []
         
+    alvo_fold = fold(valor_string)
     for stmt in claims[propriedade]:
         dv = stmt.get("mainsnak", {}).get("datavalue", {})
-        if dv.get("type") == "string" and dv.get("value") == valor_string:
-            return False
+        if dv.get("type") == "string" and fold(dv.get("value")) == alvo_fold:
+            return False # Antidedup ativado
             
     novo_statement = {
         "mainsnak": {
@@ -471,36 +444,31 @@ def adicionar_claim_string_se_nao_existe(propriedade, valor_string, qualifiers=N
         },
         "type": "statement",
         "rank": "normal",
-        "qualifiers": qualifiers if qualifiers else base_quals
+        "qualifiers": base_quals
     }
     claims[propriedade].append(novo_statement)
     return True
 
-mutacoes = 0
-
-# --- A. Convênios e Operadoras de Saúde Suplementar (P37 - Insurance Operator) ---
-convenios = ['Sul América', 'Porto Seguro', 'Notredame', 'Intermedica', 'Odonto', 'Prevent', 'Bradesco', 'Cassi', 'Allianz']
-print(f"==> 3. Processando {len(convenios)} convênios para P37 (Insurance Operator)...")
-for conv in convenios:
-    if adicionar_claim_string_se_nao_existe("P37", conv):
-        mutacoes += 1
-        print(f"  + Adicionado P37 -> {conv}")
-
-# --- B. Produção Científica, Publicações e Evidências (P52 - Bibliographic Reference ou P77) ---
+# Lista de publicações científicas da Dra. Camila
 publicacoes = [
     'Cardiac Magnetic Resonance Imaging in Fabry Disease',
     'Possíveis Mecanismos dos Inibidores de SGLT2 na Insuficiência Cardíaca (ABC Heart Fail Cardiomyop. 2021; 1(1):33-43)',
     'Capítulo sobre Métodos de Imagem Cardíaca (INSUFICÊNCIA CARDÍACA DEIC-SBC 1ª EDIÇÃO)'
 ]
 
-print(f"==> 4. Processando {len(publicacoes)} publicações científicas para P52 (Bibliographic Reference)...")
+PROPRIEDADE_PUB = "P94"
+
+print(f"==> 3. Processando publicações na propriedade {PROPRIEDADE_PUB}...")
+mutacoes = 0
 for pub in publicacoes:
-    if adicionar_claim_string_se_nao_existe("P52", pub):
+    if adicionar_claim_string_se_nao_existe(PROPRIEDADE_PUB, pub):
         mutacoes += 1
-        print(f"  + Adicionado P52 -> {pub[:50]}...")
+        print(f"  + Adicionado {PROPRIEDADE_PUB} -> {pub[:60]}...")
+    else:
+        print(f"  🔄 [Antidedup] Publicação já existente: {pub[:40]}...")
 
 if mutacoes > 0:
-    print(f"==> 5. Gravando {mutacoes} novas mutações limpas em {TARGET_QID}...")
+    print(f"==> 4. Gravando {mutacoes} novas mutações limpas em {TARGET_QID}...")
     payload_edit = {
         "action": "wbeditentity",
         "id": TARGET_QID,
@@ -510,15 +478,15 @@ if mutacoes > 0:
     }
     res_edit = session.post(API_URL, data=payload_edit).json()
     if "entity" in res_edit:
-        print(f"🚀 [SUCESSO] Entidade {TARGET_QID} atualizada com sucesso com convênios e publicações!")
+        print(f"🚀 [SUCESSO] Entidade {TARGET_QID} atualizada com sucesso via {PROPRIEDADE_PUB}!")
     else:
         print(f"❌ [ERRO AO SALVAR]: {json.dumps(res_edit, ensure_ascii=False)}")
 else:
-    print("✅ [IDEMPOTENTE] Nenhuma alteração necessária. A base já está perfeitamente sincronizada.")
+    print("✅ [IDEMPOTENTE] Nenhuma alteração necessária. Todas as publicações já estavam cadastradas.")
 
 PY_EOF
 BASH_EOF
 
-chmod +x curadoria_convenios_publicacoes_q1292.sh
-bash curadoria_convenios_publicacoes_q1292.sh
+chmod +x injetar_pubs_p94_q1292.sh
+bash injetar_pubs_p94_q1292.sh
 ---
