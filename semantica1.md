@@ -204,8 +204,8 @@ import unicodedata
 import re
 
 API_URL = "https://determinar.ia.br/w/api.php"
-BOT_USER = "Determinaradmin"
-BOT_PASS = "65d5b021bc5bf3ad160079f5"
+BOT_USER = "D"
+BOT_PASS = "07"
 TARGET_QID = "Q1292"
 DATA_COLETA = time.strftime("%Y-%m-%d")
 
@@ -371,5 +371,154 @@ bash curadoria_avancada_q1292.sh
 * **Encaixe Ontológico:** Publicações científicas, artigos e referências bibliográficas vinculadas ao perfil do médico (`P77` - *Scientific Publications* / `P52` - *Bibliographic Reference*).
 
 
+cat > curadoria_convenios_publicacoes_q1292.sh << 'BASH_EOF'
+#!/bin/bash
+# ==============================================================================
+# INGESTOR WIKIVENDAS/DETERMINAR - Convênios e Publicações Q1292 (Antidedup & No P79)
+# ==============================================================================
+set -euo pipefail
 
+python3 - << 'PY_EOF'
+import requests
+import json
+import time
+import unicodedata
+import re
+
+API_URL = "https://determinar.ia.br/w/api.php"
+BOT_USER = "Determinaradmin"
+BOT_PASS = "65d5b021bc5bf3ad160079f5"
+TARGET_QID = "Q1292"
+DATA_COLETA = time.strftime("%Y-%m-%d")
+
+session = requests.Session()
+
+print("==> 1. Autenticando na API do Wikibase...")
+r_token = session.get(API_URL, params={"action": "query", "meta": "tokens", "type": "login", "format": "json"}).json()
+login_token = r_token["query"]["tokens"]["logintoken"]
+
+r_login = session.post(API_URL, data={
+    "action": "login", "lgname": BOT_USER, "lgpassword": BOT_PASS, "lgtoken": login_token, "format": "json"
+}).json()
+
+if r_login.get("login", {}).get("result") != "Success":
+    print(f"❌ Erro de login: {json.dumps(r_login, ensure_ascii=False)}")
+    exit(1)
+
+csrf_token = session.get(API_URL, params={"action": "query", "meta": "tokens", "type": "csrf", "format": "json"}).json()["query"]["tokens"]["csrftoken"]
+print("  ✅ Sessão autenticada e Token CSRF obtido.")
+
+def fold(s):
+    if not s: return ""
+    s = unicodedata.normalize("NFKD", str(s)).encode("ASCII", "ignore").decode("ASCII")
+    return " ".join(s.split()).lower()
+
+def resolver_ou_criar_entidade(session, csrf, nome_entidade, descricao="Entidade do grafo semântico"):
+    alvo_normalizado = fold(nome_entidade)
+    
+    res = session.get(API_URL, params={"action": "wbsearchentities", "search": nome_entidade, "language": "pt-br", "format": "json", "limit": 5}).json()
+    for item in res.get("search", []):
+        if fold(item.get("label", "")) == alvo_normalizado or any(fold(a) == alvo_normalizado for a in item.get("aliases", [])):
+            return int(item["id"].replace("Q", ""))
+            
+    print(f"  ℹ️ Entidade '{nome_entidade}' não encontrada no grafo. Criando nova...")
+    data_criacao = {
+        "labels": {"pt-br": {"language": "pt-br", "value": nome_entidade}, "mul": {"language": "mul", "value": nome_entidade}},
+        "descriptions": {"pt-br": {"language": "pt-br", "value": descricao}}
+    }
+    resp_create = session.post(API_URL, data={
+        "action": "wbeditentity", "new": "item", "data": json.dumps(data_criacao), "token": csrf, "format": "json"
+    }).json()
+    
+    if "entity" in resp_create:
+        novo_qid = resp_create["entity"]["id"]
+        print(f"  ✅ Criada com sucesso: {novo_qid} -> {nome_entidade}")
+        return int(novo_qid.replace("Q", ""))
+    else:
+        res_retry = session.get(API_URL, params={"action": "wbsearchentities", "search": nome_entidade, "language": "pt-br", "format": "json", "limit": 1}).json()
+        if res_retry.get("search", []):
+            return int(res_retry["search"][0]["id"].replace("Q", ""))
+        return None
+
+print(f"==> 2. Carregando dados atuais da entidade {TARGET_QID}...")
+r_ent = session.get(API_URL, params={"action": "wbgetentities", "ids": TARGET_QID, "format": "json"}).json()
+entity_data = r_ent.get("entities", {}).get(TARGET_QID, {})
+claims = entity_data.get("claims", {})
+
+# Qualificadores padrão estritamente sem P79 (Apenas P80 Data da Coleta)
+base_quals = {
+    "P80": [{"snaktype": "value", "property": "P80", "datavalue": {"value": {"time": f"+{DATA_COLETA}T00:00:00Z", "timezone": 0, "before": 0, "after": 0, "precision": 11, "calendarmodel": "http://www.wikidata.org/entity/Q1985727"}, "type": "time"}}]
+}
+
+def adicionar_claim_string_se_nao_existe(propriedade, valor_string, qualifiers=None):
+    if propriedade not in claims:
+        claims[propriedade] = []
+        
+    for stmt in claims[propriedade]:
+        dv = stmt.get("mainsnak", {}).get("datavalue", {})
+        if dv.get("type") == "string" and dv.get("value") == valor_string:
+            return False
+            
+    novo_statement = {
+        "mainsnak": {
+            "snaktype": "value",
+            "property": propriedade,
+            "datatype": "string",
+            "datavalue": {
+                "value": valor_string,
+                "type": "string"
+            }
+        },
+        "type": "statement",
+        "rank": "normal",
+        "qualifiers": qualifiers if qualifiers else base_quals
+    }
+    claims[propriedade].append(novo_statement)
+    return True
+
+mutacoes = 0
+
+# --- A. Convênios e Operadoras de Saúde Suplementar (P37 - Insurance Operator) ---
+convenios = ['Sul América', 'Porto Seguro', 'Notredame', 'Intermedica', 'Odonto', 'Prevent', 'Bradesco', 'Cassi', 'Allianz']
+print(f"==> 3. Processando {len(convenios)} convênios para P37 (Insurance Operator)...")
+for conv in convenios:
+    if adicionar_claim_string_se_nao_existe("P37", conv):
+        mutacoes += 1
+        print(f"  + Adicionado P37 -> {conv}")
+
+# --- B. Produção Científica, Publicações e Evidências (P52 - Bibliographic Reference ou P77) ---
+publicacoes = [
+    'Cardiac Magnetic Resonance Imaging in Fabry Disease',
+    'Possíveis Mecanismos dos Inibidores de SGLT2 na Insuficiência Cardíaca (ABC Heart Fail Cardiomyop. 2021; 1(1):33-43)',
+    'Capítulo sobre Métodos de Imagem Cardíaca (INSUFICÊNCIA CARDÍACA DEIC-SBC 1ª EDIÇÃO)'
+]
+
+print(f"==> 4. Processando {len(publicacoes)} publicações científicas para P52 (Bibliographic Reference)...")
+for pub in publicacoes:
+    if adicionar_claim_string_se_nao_existe("P52", pub):
+        mutacoes += 1
+        print(f"  + Adicionado P52 -> {pub[:50]}...")
+
+if mutacoes > 0:
+    print(f"==> 5. Gravando {mutacoes} novas mutações limpas em {TARGET_QID}...")
+    payload_edit = {
+        "action": "wbeditentity",
+        "id": TARGET_QID,
+        "data": json.dumps({"claims": claims}),
+        "token": csrf_token,
+        "format": "json"
+    }
+    res_edit = session.post(API_URL, data=payload_edit).json()
+    if "entity" in res_edit:
+        print(f"🚀 [SUCESSO] Entidade {TARGET_QID} atualizada com sucesso com convênios e publicações!")
+    else:
+        print(f"❌ [ERRO AO SALVAR]: {json.dumps(res_edit, ensure_ascii=False)}")
+else:
+    print("✅ [IDEMPOTENTE] Nenhuma alteração necessária. A base já está perfeitamente sincronizada.")
+
+PY_EOF
+BASH_EOF
+
+chmod +x curadoria_convenios_publicacoes_q1292.sh
+bash curadoria_convenios_publicacoes_q1292.sh
 ---
