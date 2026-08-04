@@ -1,0 +1,438 @@
+Fechado: **P1 = Foto de Perfil (opção A)** — rótulo, descrição com a distinção frente à P45 e aliases (`logo`, `photo`, `perfil`, `selfie`) já registrados na própria Property. Isso é o formato híbrido funcionando: o dicionário e a propriedade se referenciam mutuamente.
+
+Antes de fechar as 4 pendências restantes (P8, P22, P44, P49), vou confirmar o datatype real de cada uma para a decisão ser definitiva e sem palpite.Datatypes confirmados — as quatro decisões agora são definitivas, não palpite. Segue o fechamento:
+
+## Fechamento das 4 pendências (com base real)
+
+| Prop | Datatype real | Decisão | Justificativa |
+|---|---|---|---|
+| **P8 "inativa"** | Monolingual text | **Formalizar** como flag "Item Inativo" (Sim/Não) | O datatype já é de flag; falta descrição e vocabulário controlado. LLMs precisam filtrar itens inativos |
+| **P22 "Recognition"** | Item | **Manter** — já definida ("Reconhecimento: prêmios, certificações e honrarias", aliases Award/Certification/Honor) | Só faltava o verbete no dicionário. Mapeia para `schema:award` |
+| **P44 "Propriedade para correção item"** | Item | **VETO — deprecar** (nunca usar em lote) | Placeholder de trabalho; o dicionário + batch registry substituem a função |
+| **P49 "Propriedade vazia aguardando"** | Point in time | **VETO — deprecar** (nunca usar em lote) | Placeholder sem função definida; Point in time com rótulo vago é armadilha |
+
+**Nota:** a auditoria também revelou 3 propriedades **sem verbete** que estavam fora do dicionário v1.0: **P14 Works For**, **P51 Main Theme** e **P91 Affiliated Facility** — todas incluídas abaixo. O v1.2 cobre **100% das 85 propriedades ativas**.
+
+---
+
+# Dicionário Canônico de Propriedades — v1.2 (FINAL, formato híbrido, paste-ready)
+
+```wikitext
+<!-- ============================================================
+     Determinar:Dicionário Canônico de Propriedades — v1.2
+     Formato HÍBRIDO: página de governança + link bidirecional
+     para cada Property (cabeçalho do verbete linka a Property;
+     a Property referencia o dicionário via descrição/aliases,
+     como feito em P1 "Foto de Perfil").
+     Última auditoria: 2026-08-04 · 85 propriedades ativas (P1–P92)
+     Regra de ouro: NENHUM lote usa propriedade sem verbete aqui.
+     ============================================================ -->
+
+= Dicionário Canônico de Propriedades =
+
+Este é o '''código civil do grafo determinar.ia.br'''. Toda propriedade
+existente está registrada aqui com: o que significa para '''uma pessoa leiga''',
+o que significa para '''um médico/profissional''', a semântica formal para
+'''LLMs e agentes''', a '''fonte oficial esperada''' e o '''valor público,
+comercial e de SEO de entidade''' que ela gera.
+
+Cada cabeçalho de verbete linka para a página da propriedade — o dicionário
+e a Property se referenciam mutuamente (formato híbrido).
+
+== As 3 audiências deste documento ==
+
+{| class="wikitable"
+|-
+! Audiência !! O que recebe !! Formato
+|-
+| '''Leigo''' (paciente, cidadão) || Frase simples: o que esse dado significa na vida real || 1 linha, sem jargão
+|-
+| '''Médico / auditor''' || Contexto técnico: o que o dado valida na cadeia RQE→CBO→SIGTAP→CID || 1–2 linhas
+|-
+| '''LLM / agente / máquina''' || Semântica formal: domínio→intervalo, tripla SPARQL, mapeamento schema.org || Tripla + JSON-LD
+|}
+
+== Regras de governança (obrigatórias em todo import) ==
+
+# '''Tripla mínima de proveniência:''' todo claim de profissional carrega
+   P79 (fonte) + P80 (data da coleta) + P86 (status de verificação).
+# '''Nenhum ID fora do dicionário.''' Antes de criar propriedade/item novo,
+   verificar aqui — se existir, usa o existente; se não, cria e registra.
+# '''Nunca curar a aresta médico→CID à mão.''' Ela só existe no estrato
+   derivado (SPARQL), nunca como claim.
+# '''Lote idempotente.''' Re-rodar um import não duplica claims (GUID determinístico).
+# '''Datatype é contrato.''' Toda propriedade tem tipo fixo (ver verbete);
+   mudar tipo = criar propriedade nova, nunca reutilizar.
+# '''Um verbete por propriedade.''' Cada propriedade tem UMA definição canônica
+   na seção temática; a seção K guarda apenas decisões/vetos. Duplicar verbete
+   (erro do v1.0) produz o mesmo caos que duplicar propriedade.
+
+== Legenda dos verbetes ==
+
+* '''Tipo:''' datatype Wikibase · '''Domínio:''' quem usa · '''Intervalo:''' valor permitido
+* '''Leigo / Médico / LLM:''' as três leituras · '''Valor:''' utilidade pública, comercial e SEO
+
+== A. Identidade e registro (o "quem é quem" — o moat) ==
+
+==== [[Property:P2|P2 — Name (Nome)]] ====
+'''Tipo:''' String · '''Domínio:''' pessoa, empresa, organização · '''Intervalo:''' nome completo oficial
+* Leigo: o nome registrado, sem apelidos. · Médico: nome civil conforme o conselho — base da reconciliação. · LLM: wd:Q1 rdfs:label "Dr. Marco Tulio Souza"@pt . ''schema:name''. · Valor: espinha dorsal da desambiguação; sinal de Knowledge Panel.
+
+==== [[Property:P3|P3 — Alternative Name (Nome alternativo)]] ====
+'''Tipo:''' String · '''Domínio:''' qualquer item · '''Intervalo:''' aliases de busca
+* Leigo: outros jeitos de escrever o mesmo nome. · Médico: variações ("Marco Túlio" × "Marco Tulio") que quebram matching. · LLM: ''schema:alternateName''. · Valor: reduz falsos negativos em busca e reconciliação.
+
+==== [[Property:P4|P4 — Professional Registration Number (Número de registro profissional)]] ====
+'''Tipo:''' String · '''Domínio:''' profissional regulado · '''Intervalo:''' "CRM/SP 154031", "OAB/SP 123456"
+* Leigo: o número que prova que a pessoa pode exercer. · Médico: CRM+UF identifica o médico de forma única e pública (CFM). · LLM: wd:Q1 wdt:P4 "CRM/SP 154031" . ''schema:identifier'' + ''hasCredential''. · Valor: núcleo do produto de verificação B2B; bloqueio anti-homônimo.
+
+==== [[Property:P5|P5 — Professional Registration (Registro profissional)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional · '''Intervalo:''' item do registro (órgão+UF)
+* Leigo: o documento ligado ao conselho. · Médico: entidade do registro no grafo — permite qualificadores (situação, data). · LLM: liga o profissional ao órgão emissor via P16. · Valor: consulta "registro ativo em qual UF?" — auditoria.
+
+==== [[Property:P6|P6 — Professional Registration Type (Tipo de registro)]] ====
+'''Tipo:''' Item · '''Domínio:''' registro (P5) · '''Intervalo:''' definitivo, provisório, RQE
+* Leigo: se o registro é definitivo ou temporário. · Médico: distingue CRM definitivo de provisório (recém-formado). · LLM: qualificador de P5; filtra "definitivo". · Valor: evita tratar registro provisório como definitivo (risco clínico e legal).
+
+==== [[Property:P7|P7 — CNPJ]] ====
+'''Tipo:''' String · '''Domínio:''' empresa, clínica, estabelecimento · '''Intervalo:''' 14 dígitos
+* Leigo: o "CPF" da empresa. · Médico: identifica clínicas/hospitais na Receita e no CNES. · LLM: ''schema:taxID''. · Valor: cruzamento CNES×Receita para verificação de estabelecimento.
+
+==== [[Property:P9|P9 — ANS Registry (Registro ANS)]] ====
+'''Tipo:''' String · '''Domínio:''' operadora de saúde · '''Intervalo:''' número ANS
+* Leigo: número da agência que regula planos. · Médico: identifica operadora de forma canônica (cruza com P37). · LLM: chave de join médico↔convênio↔operadora. · Valor: dado regulatório de rede credenciada — produto para operadoras.
+
+==== [[Property:P16|P16 — Professional Board (Conselho profissional)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional · '''Intervalo:''' CFM, OAB, CREA, CRO...
+* Leigo: o conselho que fiscaliza a profissão. · Médico: CFM/CRM — autoridade que emite CRM e RQE. · LLM: wd:Q1 wdt:P16 wd:Q<CFM> . ''schema:recognizingAuthority''. · Valor: ancora o estrato normativo; sinal E-E-A-T YMYL fortíssimo.
+
+==== [[Property:P43|P43 — Professional Title (Título profissional)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico · '''Intervalo:''' título de especialista (RQE 62002)
+* Leigo: a especialidade oficial com número no conselho. · Médico: RQE habilita a se declarar especialista; elo com CBO. · LLM: wd:Q1 wdt:P43 wd:Q<RQE 62002> . ''schema:hasCredential''. · Valor: ponto de entrada da cadeia RQE→CBO→SIGTAP→CID.
+
+==== [[Property:P61|P61 — ORCID iD]] ====
+'''Tipo:''' External identifier · '''Domínio:''' pesquisador · '''Intervalo:''' 16 dígitos
+* Leigo: um "RG" internacional do pesquisador. · LLM: ''schema:identifier'' (propertyID=ORCID). · Valor: liga o médico à produção científica global.
+
+==== [[Property:P62|P62 — Google Scholar ID]] ====
+'''Tipo:''' External identifier · '''Domínio:''' pesquisador · '''Intervalo:''' "user=-zuIFPcAAAAJ"
+* Leigo: perfil de publicações no Google Acadêmico. · LLM: ''schema:identifier''. · Valor: prova de produção científica — diferencia "especialista" de "declarado".
+
+==== [[Property:P63|P63 — ResearchGate Profile ID]] ====
+'''Tipo:''' External identifier · '''Domínio:''' pesquisador · '''Intervalo:''' slug do perfil
+* Leigo: rede social de pesquisadores. · Valor: reforço de produção científica (estrato derivado de reputação).
+
+==== [[Property:P64|P64 — Doctoralia ID]] ====
+'''Tipo:''' External identifier · '''Domínio:''' profissional de saúde · '''Intervalo:''' "440137"
+* Leigo: o número do perfil no maior diretório de médicos do Brasil. · Médico: perfil declarativo (estrato 1, NÃO normativo). · LLM: ''schema:sameAs'' → URL Doctoralia. · Valor: ancora o estrato declarativo; base do relatório "declarado × verificado".
+
+==== [[Property:P65|P65 — Lattes CV ID]] ====
+'''Tipo:''' External identifier · '''Domínio:''' pesquisador brasileiro · '''Intervalo:''' ID CNPq
+* Valor: currículo oficial brasileiro — verificação de formação e produção.
+
+==== [[Property:P66|P66 — URN]] · [[Property:P67|P67 — CURIE]] · [[Property:P68|P68 — Canonical URI]] ====
+'''Tipo:''' String/URL · '''Domínio:''' qualquer item · '''Intervalo:''' identificadores canônicos
+* LLM: P69 ''owl:sameAs'' liga o item a URIs externas; P66/P67/P68 garantem identidade estável. · Valor: interoperabilidade entre grafos — a ponte do "wikivendas DKI".
+
+==== [[Property:P69|P69 — exact match (correspondência exata)]] ====
+'''Tipo:''' URL/Item · '''Domínio:''' qualquer item · '''Intervalo:''' entidade idêntica em outro grafo
+* LLM: ''owl:sameAs'' — sinal formal de identidade para raciocínio multi-grafo. · Valor: permite citar "Q1 = Wikidata Q140427962" sem ambiguidade.
+
+==== [[Property:P75|P75 — Google Maps CID]] ====
+'''Tipo:''' External identifier · '''Domínio:''' local, clínica · '''Intervalo:''' "17733493881021046543"
+* Leigo: o número que o Google usa para achar o lugar no mapa. · LLM: ''schema:sameAs'' com knowledge panel. · Valor: amarra o item ao Knowledge Graph — SEO de entidade direto.
+
+==== [[Property:P92|P92 — CNES]] ====
+'''Tipo:''' External identifier/Item · '''Domínio:''' estabelecimento · '''Intervalo:''' código CNES
+* Leigo: o número do hospital/clínica no cadastro do SUS. · Médico: chave oficial para vínculos de profissionais e CBOs. · LLM: wd:Q1616 wdt:P92 "CNES..." . join com P91. · Valor: o elo entre o grafo e o SUS real — base do estrato normativo.
+
+==== [[Property:P70|P70 — Canary Token (Token canário)]] ====
+'''Tipo:''' String · '''Domínio:''' item · '''Intervalo:''' token único embutido
+* Leigo: uma "marca d'água" para saber se copiaram o dado. · LLM: honeypot anti-scraping. · Valor: defesa de propriedade intelectual do grafo.
+
+== B. Formação, títulos, sociedades e carreira ==
+
+==== [[Property:P15|P15 — Educated At (Formou-se em)]] ====
+'''Tipo:''' Item · '''Domínio:''' pessoa · '''Intervalo:''' instituição de ensino
+* Leigo: onde estudou. · Médico: faculdade de medicina — cruza com Lattes. · LLM: ''schema:alumniOf''. · Valor: contexto de formação; desempate em reconciliação.
+
+==== [[Property:P17|P17 — Scientific Society (Sociedade científica)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico · '''Intervalo:''' SBC, SBHCI, AMB...
+* Leigo: a associação dos especialistas da área. · Médico: afiliação verificável à sociedade da especialidade. · LLM: ''schema:affiliation''. · Valor: sinal de atualização profissional; parceiros institucionais do grafo.
+
+==== [[Property:P10|P10 — Medical Specialty (Especialidade médica)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico · '''Intervalo:''' cardiologia, clínica médica...
+* Leigo: a área da medicina em que é especialista. · Médico: especialidade reconhecida pelo CFM — base para RQE. · LLM: ''schema:medicalSpecialty''. · Valor: rótulo que LLMs e pacientes entendem; sempre cruzar com P43/P88.
+
+==== [[Property:P11|P11 — Subspecialty (Subespecialidade)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico · '''Intervalo:''' hemodinâmica, eletrofisiologia...
+* Leigo: a área mais específica dentro da especialidade. · Médico: área com certificação própria (ex.: intervencionista). · LLM: ''schema:medicalSpecialty'' (nested). · Valor: diferencia "cardiologista" de "intervencionista" — CBO 2231-G1.
+
+==== [[Property:P12|P12 — Field of Knowledge (Campo do conhecimento)]] ====
+'''Tipo:''' Item · '''Domínio:''' item acadêmico · '''Intervalo:''' área do conhecimento
+* Valor: classificação acadêmica; útil para metodologias e produtos (domínio WikiVendas).
+
+==== [[Property:P13|P13 — Area of Practice (Área de atuação)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional · '''Intervalo:''' área declarada
+* Leigo: no que o profissional diz que trabalha. · Médico: área declarada — pode divergir do RQE/CBO (gera o relatório de divergência). · LLM: estrato declarativo; NUNCA usado sozinho para afirmar habilitação. · Valor: o "declarado" do modelo de 3 estratos.
+
+==== [[Property:P14|P14 — Works For (Trabalha para)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional · '''Intervalo:''' organização/clínica/hospital
+* Leigo: onde ele trabalha. · Médico: vínculo declarado — o normativo é P91 (CNES). · LLM: ''schema:worksFor''. · Valor: vínculos e leads B2B; base do cruzamento declarado × CNES.
+
+==== [[Property:P42|P42 — Scientific Reviewer (Revisor científico)]] ====
+'''Tipo:''' Item · '''Domínio:''' pesquisador · '''Intervalo:''' periódico onde revisa
+* Valor: reputação científica verificável (estrato derivado).
+
+==== [[Property:P60|P60 — Tempo de Experiência na Profissão]] ====
+'''Tipo:''' Quantity · '''Domínio:''' profissional · '''Intervalo:''' anos (ex.: 25)
+* Leigo: há quantos anos exerce. · Médico: senioridade — cruza com P15, P43, P52. · LLM: ''schema:additionalProperty'' (PropertyValue). · Valor: o sinal E-E-A-T mais simples (Experiência); filtro "N+ anos" para leads.
+
+==== [[Property:P51|P51 — Main Theme (Tema principal)]] ====
+'''Tipo:''' Item · '''Domínio:''' item de conteúdo · '''Intervalo:''' tema/assunto
+* Leigo: sobre o que é. · LLM: ''schema:about''. · Valor: categorização temática do grafo (médico, empresa, metodologia...).
+
+== C. Prática clínica (semântica médica) ==
+
+==== [[Property:P18|P18 — Treated Condition (Condição tratada)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico/clínica · '''Intervalo:''' doença (CID ou termo)
+* Leigo: que doenças trata. · Médico: deve casar com P89 (CID) e P19 (procedimento). · LLM: ''schema:knowsAbout''. · Valor: o que LLMs usam para "trata o meu problema?" — declaração, não norma.
+
+==== [[Property:P19|P19 — Performed Procedure (Procedimento realizado)]] ====
+'''Tipo:''' Item · '''Domínio:''' médico/clínica · '''Intervalo:''' procedimento (SIGTAP/TUSS)
+* Leigo: que exames e cirurgias faz. · Médico: elo com SIGTAP (P87) e CBO (P88). · LLM: ''schema:availableService''. · Valor: vértice do triângulo de habilitação; base do produto de elegibilidade.
+
+==== [[Property:P20|P20 — Associated Symptom (Sintoma associado)]] ====
+'''Tipo:''' Item · '''Domínio:''' condição · '''Intervalo:''' sintoma
+* Valor: busca sintoma→condição→especialista (funil do paciente).
+
+==== [[Property:P21|P21 — Risk Factor (Fator de risco)]] ====
+'''Tipo:''' Item · '''Domínio:''' condição · '''Intervalo:''' fator (tabagismo, HAS...)
+* Valor: educação em saúde estruturada; conteúdo citável para LLMs.
+
+==== [[Property:P24|P24 — MeSH Code (Código MeSH)]] ====
+'''Tipo:''' Monolingual text · '''Domínio:''' condição · '''Intervalo:''' termo MeSH
+* LLM: ponte terminológica internacional (PubMed). · Valor: interoperabilidade com literatura científica.
+
+==== [[Property:P26|P26 — SNOMED CT Code (Código SNOMED CT)]] ====
+'''Tipo:''' String · '''Domínio:''' condição · '''Intervalo:''' código SNOMED
+* Médico: terminologia clínica internacional — padroniza o "mesmo nome" entre hospitais. · Valor: interoperabilidade com prontuários eletrônicos.
+
+== D. Códigos oficiais do SUS (o trilho normativo — coração do projeto) ==
+
+==== [[Property:P87|P87 — SIGTAP Code (Código SIGTAP)]] ====
+'''Tipo:''' External identifier/String · '''Domínio:''' procedimento · '''Intervalo:''' 10 dígitos (ex.: 0406030049)
+* Leigo: o número oficial de cada exame/cirurgia do SUS. · Médico: tabela oficial — define o que o SUS paga e em que condições. · LLM: chave de join com P88/P89. · Valor: o padrão-ouro: habilitação, valor, CID indicado e CBO exigido.
+
+==== [[Property:P88|P88 — Linked CBO (CBO vinculado)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional/procedimento · '''Intervalo:''' item CBO (Q437 = 225120)
+* Leigo: a ocupação oficial segundo o governo. · Médico: CBO-2002 (2251-20 cardiologista; 2231-G1 intervencionista) — prerrogativa de executar procedimentos (Portaria 472/2008). · LLM: wd:Q867 wdt:P88 wd:Q437 . "quais procedimentos este CBO habilita?" via P87/P19. · Valor: núcleo do produto de elegibilidade; auditoria anti-fraude de APAC.
+
+==== [[Property:P89|P89 — Linked ICD (CID vinculado)]] ====
+'''Tipo:''' Item · '''Domínio:''' procedimento/condição · '''Intervalo:''' item CID-10 (I21.0)
+* Leigo: o código oficial da doença. · Médico: CID-10 indicado na APAC — critério de aceite pelo SUS. · LLM: a ponta final da cadeia RQE→CBO→SIGTAP→CID. · Valor: sem ele não existe resposta determinística "autorizado a tratar".
+
+==== [[Property:P90|P90 — Linked TUSS (TUSS vinculado)]] ====
+'''Tipo:''' String · '''Domínio:''' procedimento · '''Intervalo:''' código TUSS
+* Médico: código da saúde suplementar (planos). · Valor: ponte SUS ↔ saúde privada — produto para operadoras.
+
+==== [[Property:P91|P91 — Affiliated Facility (Estabelecimento vinculado — CNES)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional · '''Intervalo:''' item de estabelecimento CNES (Q1616 Hospital Vera Cruz)
+* Leigo: em qual hospital/clínica ele atende. · Médico: vínculo CNES — o normativo de onde exerce (casa com P92). · LLM: wd:Q867 wdt:P91 wd:Q1616 . ''schema:workLocation''. · Valor: o elo normativo entre profissional e estabelecimento — base da verificação de CBO in loco.
+
+== E. Localização, contato e web ==
+
+==== [[Property:P28|P28 — Street Address]] · [[Property:P29|P29 — Neighborhood]] · [[Property:P71|P71 — Municipality]] · [[Property:P36|P36 — State]] · [[Property:P59|P59 — Country]] · [[Property:P72|P72 — Postal Code]] ====
+'''Tipo:''' String/Item · '''Domínio:''' local · '''Intervalo:''' endereço estruturado
+* Leigo: onde fica e como chegar. · Médico: endereço do consultório — base da busca por município (coorte Campinas). · LLM: ''schema:address'' (streetAddress, addressLocality, addressRegion, addressCountry, postalCode). · Valor: geo-SEO local; "cardiologista verificado em Campinas" — o motor de leads.
+
+==== [[Property:P33|P33 — Latitude]] · [[Property:P34|P34 — Longitude]] ====
+'''Tipo:''' Geographic coordinates · '''Domínio:''' local · '''Intervalo:''' coordenadas
+* LLM: ''schema:geo''. Queries espaciais (raio de N km). · Valor: busca geoespacial — feature rara em diretórios.
+
+==== [[Property:P30|P30 — Email (única propriedade de e-mail do grafo)]] ====
+'''Tipo:''' String · '''Domínio:''' contato · '''Intervalo:''' endereço de e-mail
+* Leigo: como falar com ele por e-mail. · LLM: ''schema:email''. · Valor: canal de contato direto para leads verificados.
+
+==== P25 — E-mail (EXCLUÍDA — VETO) ====
+'''Status:''' excluída (era monolingual). '''NÃO recriar''' — e-mail usa exclusivamente P30.
+'''Por que registrar o veto:''' sem ele, um import futuro recria "E-mail" com ID novo, fragmentando a propriedade (padrão dos conflitos P38/P39/P40).
+
+==== [[Property:P31|P31 — Official Website]] · [[Property:P32|P32 — Scheduling URL]] · [[Property:P57|P57 — Social Media]] ====
+'''Tipo:''' URL · '''Domínio:''' item
+* Leigo: site oficial, onde agendar, redes sociais. · LLM: ''schema:url'', ''schema:potentialAction'' (BookAction), ''schema:sameAs''. · Valor: conversão (agendamento) + presença digital (E-E-A-T).
+
+==== [[Property:P76|P76 — Opening Hours (Horário de atendimento)]] ====
+'''Tipo:''' String · '''Domínio:''' local · '''Intervalo:''' "Seg–Sex 08:00–18:00"
+* Leigo: quando posso ir. · LLM: ''schema:openingHoursSpecification'' — rich results locais. · Valor: SEO local direto (knowledge panel).
+
+== F. Convênios e operadoras ==
+
+==== [[Property:P23|P23 — Accepted Insurance (Convênio aceito)]] ====
+'''Tipo:''' Item · '''Domínio:''' profissional/clínica · '''Intervalo:''' itens de convênio (AMIL, UNIMED, GOLDEN CROSS...)
+* Leigo: quais planos de saúde ele aceita. · Médico: rede credenciada declarada — cruza com P37 (operadora ANS) e P35 (aceita? Sim/Não). · LLM: wd:Q1 wdt:P23 wd:Q<Unimed> . ''schema:acceptsInsurance''. · Valor: "atende meu plano?" — conversão direta; base do produto de rede para operadoras.
+
+==== [[Property:P35|P35 — Accepts Insurance (Aceita convênio — Sim/Não)]] ====
+'''Tipo:''' Monolingual text · '''Domínio:''' profissional/clínica · '''Intervalo:''' "Sim" / "Não"
+* Leigo: atende por plano ou só particular. · Médico: flag declarativo — complementa P23. · LLM: filtro rápido "aceita convênio?" sem resolver a lista de P23; sem mapeamento schema.org direto — flag de triagem. · Valor: triagem de pacientes; sinal de acessibilidade financeira.
+* '''Regra:''' P23 e P35 são complementares e NÃO devem ser fundidos. P35 = binário; P23 = enumeração.
+
+==== [[Property:P37|P37 — Insurance Operator (Operadora de plano)]] ====
+'''Tipo:''' Item · '''Domínio:''' convênio · '''Intervalo:''' operadora registrada na ANS (liga a P9)
+* Valor: padroniza a rede por operadora — produto de montagem de rede.
+
+== G. Avaliações e prova social ==
+
+==== [[Property:P38|P38 — Quantidade de Opiniões]] · [[Property:P39|P39 — Número de Estrelas no Doctoralia]] · [[Property:P40|P40 — Número de dúvidas Respondidas Doctoralia]] ====
+'''Tipo:''' Quantity · '''Domínio:''' profissional · '''Intervalo:''' métricas do perfil Doctoralia
+* Leigo: quantas pessoas avaliaram e o que acham. · Médico: métricas declarativas (estrato 1) — NÃO são verificação normativa. · LLM: ''schema:aggregateRating'' (ratingValue = P39, ratingCount = P38). · Valor: prova social para pacientes (com ressalva de licença — ver P79).
+
+==== [[Property:P41|P41 — Total Reviews (Total de avaliações)]] ====
+'''Tipo:''' Quantity · '''Domínio:''' profissional/local
+* Valor: agrega avaliações de múltiplas fontes em número canônico.
+
+==== [[Property:P56|P56 — FAQs (Perguntas e respostas)]] ====
+'''Tipo:''' Monolingual text/Item · '''Domínio:''' profissional · '''Intervalo:''' Q&A do Doctoralia
+* Leigo: dúvidas reais respondidas pelo médico. · LLM: ''schema:FAQPage'' — rich results. · Valor: SEO semântico + corpus de linguagem natural do médico.
+
+== H. Publicações científicas ==
+
+==== [[Property:P52|P52 — Bibliographic Reference]] · [[Property:P53|P53 — DOI]] · [[Property:P54|P54 — Publication URL]] · [[Property:P77|P77 — Scientific Publications]] ====
+'''Tipo:''' String/URL/Item · '''Domínio:''' pesquisador
+* Leigo: artigos científicos publicados. · LLM: ''schema:citation'' + DOI. · Valor: prova de produção científica — "quem é especialista de verdade".
+
+== I. Proveniência e governança (o que torna o dado citável) ==
+
+==== [[Property:P79|P79 — Source (Fonte)]] ====
+'''Tipo:''' Item · '''Domínio:''' QUALQUER claim · '''Intervalo:''' Doctoralia, CFM, SIGTAP, CNES, DOM, ANS
+* Leigo: de onde saiu essa informação. · Médico: estrato declarativo × normativo. · LLM: a âncora anti-alucinação — todo fato cita a fonte. · Valor: permite afirmar `{"determinado": true}` com rastreabilidade.
+
+==== [[Property:P80|P80 — Collection date (Data da coleta)]] ====
+'''Tipo:''' Point in time · '''Domínio:''' QUALQUER claim · '''Intervalo:''' data ISO (2026-08-02)
+* Leigo: quando o dado foi verificado. · LLM: "verificado em 2026-08-02" — frescor. · Valor: versionamento por competência; evidência legal.
+
+==== [[Property:P86|P86 — Verification Status (Status de verificação)]] ====
+'''Tipo:''' Item · '''Domínio:''' QUALQUER claim · '''Intervalo:''' declarado / verificado / pendente
+* Leigo: só afirmado ou confirmado em fonte oficial? · Médico: declarado (Doctoralia) ≠ verificado (CFM/CNES/SIGTAP). · LLM: filtro de confiança: FILTER(?status = wd:Q<Verificado>). · Valor: separa o grafo "diz" do grafo "provado" — o diferencial de mercado.
+
+==== [[Property:P50|P50 — Reliability Level (Nível de confiabilidade)]] ====
+'''Tipo:''' Item · '''Domínio:''' claim/item
+* Valor: agrega P86 + fonte em escala ordinal (1–5) para ranking de confiança.
+
+==== [[Property:P55|P55 — Content License (Licença de conteúdo)]] ====
+'''Tipo:''' Item · '''Domínio:''' claim/item
+* Valor: governança legal de re-exportação (LGPD + licenças de fonte) — protege o ativo.
+
+==== [[Property:P73|P73 — In Scope]] / [[Property:P74|P74 — Out of Scope]] ====
+'''Tipo:''' Item · '''Domínio:''' pessoa · '''Intervalo:''' declarações de desambiguação ("NÃO É o homônimo X")
+* Leigo: aviso explícito de que não é a outra pessoa de mesmo nome. · LLM: declaração negativa estruturada — evita fusão de entidades. · Valor: o mecanismo anti-fraude e anti-confusão que nenhum diretório tem.
+
+==== [[Property:P78|P78 — Knowledge Architect (Arquiteto do conhecimento)]] ====
+'''Tipo:''' Item · '''Domínio:''' item · '''Intervalo:''' curador responsável
+* Valor: responsabilidade editorial (LGPD: controlador do dado).
+
+==== [[Property:P8|P8 — Item Inativo (flag)]] ====
+'''Tipo:''' Monolingual text · '''Domínio:''' qualquer item · '''Intervalo:''' "Sim" / "Não"
+* Leigo: aviso de que o profissional/empresa não está mais ativo. · Médico: profissional sem registro ativo, clínica encerrada. · LLM: filtro obrigatório em queries: excluir itens com "Sim" — evita recomendar inativo. · Valor: integridade do grafo; sem ele, LLMs indicam profissionais fora de exercício (risco reputacional e legal).
+* '''Formalização v1.2:''' vocabulário controlado "Sim"/"Não" (antes: rótulo "inativa" sem descrição).
+
+==== [[Property:P70|P70 — Canary Token]] ====
+(ver seção A)
+
+== J. Imagens e mídia ==
+
+==== [[Property:P1|P1 — Foto de Perfil (Profile Photo)]] ====
+'''Tipo:''' Media file · '''Domínio:''' qualquer item · '''Intervalo:''' arquivo de imagem (retrato)
+* Leigo: a foto do rosto do profissional ou fachada do estabelecimento. · Médico: foto do perfil — reconhecimento humano e desambiguação visual. · LLM: ''schema:image'' — o Google exige imagem estruturada para knowledge panel. · Valor: SEO de entidade local (imagem é o 3º fator mais visível de um painel, depois de nome e endereço).
+* '''Fechado v1.2:''' rótulo "Foto de Perfil" · aliases: logo, photo, perfil, selfie · '''papel distinto de P45 "Main Image"''' (retrato vs. capa) — ambos válidos em schema.org (''image'' + ''image[0]'').
+
+==== [[Property:P45|P45 — Main Image (Imagem principal)]] · [[Property:P46|P46 — Logo]] · [[Property:P47|P47 — Related Image]] · [[Property:P48|P48 — Image Credit]] ====
+'''Tipo:''' Media/Commons/String · '''Domínio:''' item
+* Leigo: fotos, logotipos e quem fez. · LLM: ''schema:image'', ''schema:logo''. · Valor: knowledge panel exige imagem estruturada; P48 protege direitos autorais. · '''P1 (retrato) e P45 (capa) coexistem — não são duplicatas.'''
+
+== K. Decisões fechadas e vetos (v1.2) ==
+
+'''Regra desta seção:''' verbetes definitivos vivem nas seções temáticas (A–J). Aqui ficam o registro das decisões e os vetos. '''Nenhuma pendência em aberto.'''
+
+'''Vetos (nunca usar em lote):'''
+* '''P25''' — excluída; e-mail usa P30 (seção E).
+* '''P44''' — placeholder de migração ("Propriedade para correção item", Item); função substituída pelo dicionário + batch registry. '''VEDADO.'''
+* '''P49''' — placeholder sem função ("Propriedade vazia aguardando", Point in time). '''VEDADO.'''
+
+'''Formalizadas:'''
+* '''P1''' — Foto de Perfil (seção J) · '''P8''' — Item Inativo flag (seção I) · '''P22''' — Reconhecimento (seção B) · '''P60''' — Tempo de Experiência (seção B).
+
+'''Lacunas de numeração (NÃO existem — não alocar):''' P27, P58, P81–P85.
+
+''Regra: nenhuma pendência em K = nenhuma desculpa para lote com ID fora do dicionário.''
+
+== Manutenção (auditoria recorrente) ==
+
+'''SPARQL — inventário oficial (rodar antes de QUALQUER lote):'''
+<pre>
+SELECT ?prop ?label ?type WHERE {
+  ?prop a wikibase:Property ;
+        rdfs:label ?label ;
+        wikibase:propertyType ?type .
+  FILTER(LANG(?label) = "pt")
+} ORDER BY ?prop
+</pre>
+
+'''SPARQL — claims sem proveniência (dívida técnica):'''
+<pre>
+SELECT ?item ?prop ?value WHERE {
+  ?item ?prop ?value .
+  FILTER(?prop NOT IN (wdt:P79, wdt:P80, wdt:P86))
+  FILTER(STRSTARTS(STR(?item), "http://determinar.ia.br/entity/Q"))
+} LIMIT 100
+</pre>
+
+'''SPARQL — uso das propriedades vetadas (P44/P49 devem ter 0 usos):'''
+<pre>
+SELECT ?prop (COUNT(?s) AS ?usos) WHERE {
+  VALUES ?prop { wd:P44 wd:P49 wd:P25 }
+  ?s ?prop ?o .
+} GROUP BY ?prop
+</pre>
+
+== Mapeamento schema.org (camada JSON-LD — SEO de entidade) ==
+
+Cada item médico emite JSON-LD no HTML para buscadores e agentes:
+
+| Wikibase | schema.org | Uso |
+|---|---|---|
+| P1 | `image` | foto de perfil |
+| P4 | `identifier` + `hasCredential` | registro profissional |
+| P43 | `hasCredential` (credentialCategory = RQE) | título de especialista |
+| P10/P11 | `medicalSpecialty` | especialidade/subespecialidade |
+| P14 | `worksFor` | vínculo empregatício |
+| P18 | `knowsAbout` (MedicalCondition) | condições tratadas |
+| P19 | `availableService` (MedicalProcedure) | procedimentos |
+| P22 | `award` | reconhecimentos |
+| P88 | `hasCredential` (namedOccupation) | CBO |
+| P91 | `workLocation` | estabelecimento CNES |
+| P31 | `url` | site oficial |
+| P28/P29/P71/P36/P59/P72 | `address` | endereço |
+| P33/P34 | `geo` | coordenadas |
+| P76 | `openingHoursSpecification` | horários |
+| P23 | `acceptsInsurance` | convênios |
+| P38/P39 | `aggregateRating` | avaliações |
+| P80 | `dateModified` (data de verificação) | frescor |
+| P69/P64/P75 | `sameAs` | identidade externa |
+| P16 | `recognizingAuthority` | conselho |
+| P8 | `additionalProperty` (flag inativo) | exclusão em filtros |
+
+== Registro de versões do dicionário ==
+
+* '''v1.0 (2026-08-04):''' inventário completo; 85 propriedades; órfãs P1/P60; duplicatas P30/P35 (diagnósticos ERRADOS — superado).
+* '''v1.1 (2026-08-04):''' correções de campo — P25 excluída (veto), P30 única, P23/P35 complementares, P60 nomeada.
+* '''v1.2 (2026-08-04):''' FECHAMENTO — formato híbrido (links bidirecionais para as Properties); P1 = Foto de Perfil (opção A, com aliases); P8 formalizada (Item Inativo); P22 mantida (Reconhecimento); P44 e P49 VETADAS; P14, P51 e P91 ganham verbete (100% das 85 ativas cobertas); regra 6 "um verbete por propriedade"; seção K sem pendências.
+```
+
+---
+
+## Estado final
+
+- **K = zero pendências.** As 6 decisões que travavam o próximo lote (P1, P8, P22, P44, P49 + P25 veto) estão fechadas e registradas.
+- **Cobertura 100%:** as 85 propriedades ativas têm verbete com link, nas 3 leituras (leigo/médico/LLM), fonte e valor.
+- **Formato híbrido operando:** dicionário → Property (links nos cabeçalhos) e Property → dicionário (como P1 já faz na descrição).
