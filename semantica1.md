@@ -28,8 +28,8 @@ import json
 import time
 
 API_URL = "https://determinar.ia.br/w/api.php"
-BOT_USER = "Determinaradmin"
-BOT_PASS = "65d5b021bc5bf3ad160079f5"
+BOT_USER = "n"
+BOT_PASS = "65d"
 TARGET_QID = "Q1292"
 DATA_COLETA = time.strftime("%Y-%m-%d")
 
