@@ -14,7 +14,7 @@ Analisando o relatório de match, os termos não encontrados dividem-se em **4 m
 
 * **Termos:** `'Residência em Clínica Médica pela Faculdade de Medicina de Catanduva'`, `'Residência em Cardiologia pela Faculdade de Medicina de São José do Rio Preto'`, `'Graduação em Medicina pela Universidade Federal de Ouro Preto'`, `'Mestre em Ciências Médicas pela UNICAMP'`, `'Especialista em Imagem Cardiovascular pela UNICAMP'`
 * **Encaixe Ontológico:** Instituições de formação, acadêmicas e especializações (`P15` - *Educated At* / Aluno de).
-"cat > injetar_formacao_q1292_v2.sh << 'BASH_EOF'
+""cat > injetar_formacao_q1292_v2.sh << 'BASH_EOF'
 #!/bin/bash
 # ==============================================================================
 # INGESTOR WIKIVENDAS/DETERMINAR - Injeção de Formação Acadêmica (Q1292 - P15)
@@ -165,7 +165,7 @@ PY_EOF
 BASH_EOF
 
 chmod +x injetar_formacao_q1292_v2.sh
-bash injetar_formacao_q1292_v2.sh"
+bash injetar_formacao_q1292_v2.sh""
 
 * **Termos:** `'Título de especialista em Cardiologia pela SBC - 2021'`, `'Reconhecimento pela performance e engajamento na Doctoralia, tornando a experiência em saúde mais humana.'`
 * **Encaixe Ontológico:** Prêmios, certificações e reconhecimentos profissionais (`P22` - *Recognition*).
