@@ -376,3 +376,418 @@ Regra inegociável: **nenhum claim do estrato 1 sobe de status sem reconciliaç�
 | **P4** ocupa CBO | **Q22** 2251-20 Médico cardiologista | P40 → Q64 | CBO-2002 |
 | **P4** ocupa CBO | **Q76** 2231G1 Médico cardiologista intervencionista | P40 → Q64 (se constar no CNES do estabelecimento) | SIGTAP campo 19 + CNES |
 | **P44** registro CRM | `CRM-SP 000.000` (placeholder) | qualificador: conselho regional; P40 → Q66 pendente (não consta no perfil público) | CRM-SP |
+
+# Reality check: o que o Item:Q1 realmente é hoje vs. o que foi proposto no chat
+
+## 1. O que o dump prova (fatos, não suposições)
+
+| Dado | Realidade no dump |
+|---|---|
+| Página | **Item:Q1** (content model `wikibase-item` — já é entidade, não artigo) |
+| Rótulo | **"Dr. Marco Tulio Souza"** |
+| Última edição | 1 ago 2026, 21:46 (rev 1310) |
+| Identificadores | P62 Google Scholar ID `-zuIFPcAAAAJ` · P63 ResearchGate `Marco-Souza` · P64 Doctoralia ID `440137` · P75 Google Maps CID `17733493881021046543` |
+| Statements URL | 3: Wikidata `Q140427962` · wikisales.wikibase.cloud `Q1` · wikivendas.wikibase.cloud `Q111` |
+| Referências | **0 em todos os 7 statements** |
+| Qualificadores P38/P39/P40 | **nenhum** |
+
+## 2. Três achados críticos que mudam o plano
+
+1. **A numeração do chat não foi seguida — e não pode mais ser.** O plano reservava Q1 = hub conceitual e Q41 = médico. Na realidade, **Q1 já é o Dr. Marco Túlio Souza**. Logo: o hub conceitual e todos os itens de apoio (Q2–Q83) precisam ser recriados a partir do próximo ID livre real. Qualquer JSON de importação com os IDs do chat vai colidir.
+2. **Proveniência zero — a regra de ouro foi violada no estado atual.** O modelo de 3 estratos exige P38 fonte + P39 data da coleta + P40 status em **todo** claim. Hoje existem 7 statements sem nenhuma referência nem qualificador: nada é auditável. O Q1 atual está no "estrato 0": identificadores soltos.
+3. **Propriedades fora do dicionário já existem.** P62, P63, P64, P75 não estavam na lista P2–P44 do chat. O dicionário de propriedades precisa ser atualizado — ou esses IDs serão sobrescritos por engano no próximo lote.
+
+## 3. Proposta × realidade × faltando
+
+| Estrato | Proposto no chat | Existe de fato | Faltando |
+|---|---|---|---|
+| **Identidade** | Q41 = Dr., rótulo + aliases (incl. "Marco Túlio de Souza") | Q1 = Dr. (rótulo sem acento), sem aliases visíveis | Alias para reconciliação; descrição |
+| **Normativo** | P31→Q2; P25→Q42/Q43 (SBC/SBHCI); P2→Q21; P3→Q83; P4→Q22/Q76; P44 CRM | **Nada** | Todos os claims + itens de apoio (Q47 SBC, Q48 SBHCI, Q76 CBO 2231G1, etc.) |
+| **Declarativo (Doctoralia)** | Especialidades, serviços, convênios, idiomas, avaliações com P38/P39/P40 | **Nada** (só o ID P64) | Claims com status Q63 declarado |
+| **Proveniência** | P38+P39+P40 em todo claim | 0 references, 0 qualifiers | Correção retroativa dos 7 statements atuais |
+| **Derivado** | SPARQL CONSTRUCT "está autorizado a tratar X?" | **Nada** | Query no query.determinar.ia.br |
+| **Identificadores** | — (não planejados) | P62, P63, P64, P75 ✓ | Documentar no dicionário |
+
+## 4. Próximo passo concreto (antes de eu gerar qualquer JSON)
+
+Rodar esta auditoria no Query Service (`https://query.determinar.ia.br`) para saber o inventário real de IDs livres:
+
+```sparql
+# Itens existentes (rótulo pt)
+SELECT ?item ?label WHERE {
+  ?item rdfs:label ?label . FILTER(LANG(?label) = "pt")
+} ORDER BY ?item LIMIT 500
+
+# Propriedades existentes
+SELECT ?prop ?label WHERE {
+  ?prop a wikibase:Property ; rdfs:label ?label . FILTER(LANG(?label) = "pt")
+} ORDER BY ?prop
+```
+
+Com esse resultado eu fecho três entregáveis que ficaram pendentes da resposta truncada:
+
+1. **Estrato declarativo completo do Doctoralia** (claims prontos com P38 = Doctoralia, P39 = 2026-08-02, P40 = Q63), usando os **IDs reais** pós-auditoria;
+2. **Estrato derivado** — query CONSTRUCT pronta para "autorizado a tratar I21.0?";
+3. **Mensagens em linguagem popular** para operador/auditor, médico solicitante e paciente, no cenário concreto do Dr. Marco Túlio (angioplastia 0406030030/0406030049 + CBO 2231G1).
+
+Cole o resultado da SPARQL aqui (ou me diga quantos itens/propriedades listou) que eu já entrego o lote com a numeração correta — sem o risco de sobrescrever o que já existe.
+
+# Veredito: o modelo escala, o processo atual não
+
+A arquitetura de 3 estratos (declarativo → normativo → derivado) é **conceitualmente escalável** — ela foi desenhada exatamente para isso: cada claim carrega fonte + data + status, e "autorizado?" é derivado por SPARQL, nunca curado à mão. O que **não escala é o modo de trabalho atual**: editar claim a claim na UI, com GUIDs aleatórios, sem referências e sem lote registrado. A escala é um problema de **engenharia**, não de ontologia. Abaixo, o que o modelo absorve bem, onde ele trava e o inventário do que precisa ser montado.
+
+---
+
+## 1. O que o modelo absorve bem (sem redesenho)
+
+| Camada | Fonte | Por que escala |
+|---|---|---|
+| Declarativo | Doctoralia, perfis, sites | Ingestão massiva por scraping/API; cada item vira statement com P38+P39+P40 — não depende de curadoria humana |
+| Normativo | SIGTAP (TABWIN), CNES (CSV), CFM, Portaria 472/2008 | São **tabelas relacionais oficiais** (procedimento×CBO×CID×habilitação). Parsear arquivo > digitar |
+| Derivado | SPARQL `CONSTRUCT` | Regra escrita uma vez, aplicada a N médicos; zero curadoria manual por par médico→CID |
+| Desambiguação | CRM + RQE + CBO + CNES + município | Chaves de bloqueio determinísticas (o dump do Q1 já lista 20+ homônimos — isso é resolvível por regra, não por olho) |
+
+O truque que salva o volume: **a tripla útil é esparsa**. Existem ~550 mil médicos ativos e ~4.500 procedimentos SIGTAP, mas as restrições críticas CBO×procedimento (Portaria 472/2008) somam poucas centenas de pares, e a tríade completa só "fecha" para um subconjunto. O grafo cresce linearmente com o número de profissionais (≈150–250 triples/médico com proveniência), não com o produto cartesiano de todas as combinações.
+
+## 2. Os 6 gargalos reais (onde o plano atual quebraria)
+
+1. **Entrada manual** — UI não passa de ~centenas de edits/dia; volume exige lote.
+2. **Idempotência** — re-rodar um import não pode duplicar claims. GUIDs atuais são UUIDs aleatórios (`Q1$AA3621B3-...`); em massa, GUID deve ser **determinístico** (hash de fonte+valor+competência), senão cada execução cria statement novo.
+3. **Reconciliação de identidade** — homônimos exigem chave composta (CRM+UF, RQE, CBO, cidade) com fila de revisão humana para exceções; sem isso, 1% de erro de matching vira centenas de itens poluídos.
+4. **Versionamento normativo** — SIGTAP muda por competência, Portaria 472 é alterada, CBO evolui. Cada claim precisa de **validade temporal** (início/fim) e status "substituído"; o modelo de qualificadores já suporta, mas exige job de revalidação agendado.
+5. **Proveniência garantida** — P38+P39+P40 obrigatórios em todo claim só se o **gerador de statements** for template-driven; humanos esquecem (é exatamente o que aconteceu no Q1: 7 claims, 0 references).
+6. **Query/armazenamento** — o Query Service roda Blazegraph; dezenas de milhões de triples exigem máquina própria e materialização incremental do estrato derivado.
+
+## 3. O que precisa ser montado (roadmap por fase)
+
+### Fase 0 — Fundação de governança (resolve o problema Q1 para sempre)
+- **Dicionário canônico versionado** de propriedades e classes, no próprio Wikibase (regra: nenhum import usa ID não registrado — P62/P63/P64/P75 quebraram isso no Q1).
+- **Registro de lotes (batch registry)**: cada import = um item/registro com fonte, competência SIGTAP, contagem, diff contra o lote anterior, status. É o que torna qualquer ingestão auditável e revertível.
+- **Esquemas de validação** via EntitySchema/ShEx: "todo claim de profissional exige P38+P39+P40" vira shape testável em CI.
+- **GUID determinístico** para statements (idempotência).
+
+### Fase 1 — ETL declarativo (Doctoralia e afins)
+- Conectores (scraping/API) + normalizador de nomes (acentos, "Marco Tulio" vs "Túlio", geração de aliases para reconciliação).
+- Gerador de statements por template → P38=Doctoralia, P39=data da coleta, P40=Q63 declarado.
+- Integração com o estrato normativo: perfil declarado só "sobe" se a chave (CRM/RQE/CBO) casar.
+
+### Fase 2 — ETL normativo (o "fonte da verdade")
+- **Parser SIGTAP** (arquivos TABWIN da competência: `tb_procedimento`, `tb_cbo`, `tb_cid`, habilitação) — versionado por competência, com tabela de vigência.
+- **Parser da Portaria 472/2008** (crítica CBO×procedimento) + suas alterações.
+- **Ingestor CNES** (vínculos profissional × estabelecimento × CBO — é onde o CBO 2231G1 do Dr. Marco Túlio seria verificado de fato).
+- **CFM**: CRM/RQE/títulos → itens.
+- **Evidências**: importador de produção ambulatorial/APAC (quando disponível) para criar o estrato de evidência real.
+
+### Fase 3 — Materialização do estrato derivado
+- Pipelines `CONSTRUCT` agendados (o "está autorizado a tratar X?"), com snapshots versionados.
+- **Endpoint determinístico para LLMs** — a razão de existir do projeto: consulta REST que devolve o caminho RQE→CBO→SIGTAP→CID sem alucinação, com a proveniência embutida na resposta.
+
+### Fase 4 — Qualidade e divergência
+- Constraints automatizadas (claims sem fonte, sem status, órfãos, declaração sem verificação).
+- **Relatório declarado × verificado** (ex.: Doctoralia diz "angiologia", CNES diz outra coisa → item cai numa fila de divergência).
+
+### Fase 5 — Saídas humanas
+- **Motor de templates por papel** (operador/auditor, médico solicitante, paciente) parametrizado pelos dados — as mensagens em linguagem popular que você pediu viram templates, não texto manual.
+
+## 4. Ordem de grandeza para dimensionar
+
+| Dado | Volume real (Brasil) |
+|---|---|
+| Médicos ativos | ~550 mil |
+| Procedimentos SIGTAP | ~4.500 |
+| CID-10 | ~4.000 |
+| Especialidades + áreas CFM | ~55 + ~60 |
+| CBO médicos relevantes | ~80 códigos |
+| Triples com proveniência (todos os médicos) | ~100–150 milhões (viável em Blazegraph self-hosted com máquina dedicada; **inviável** em wikibase.cloud para produção) |
+
+Recomendação de escopo: **coorte primeiro** — ex. cardiologia em Campinas/SP, ou os ~180 procedimentos do Programa Agora Tem Especialistas — para calibrar reconciliação e templates antes do salto nacional.
+
+## 5. As 4 decisões que destravam a engenharia
+
+1. **Escopo do piloto** — 1 especialidade × 1 município, ou nacional já?
+2. **Hospedagem** — self-hosted (produção, controle de Blazegraph e jobs) vs. wikibase.cloud (protótipo, limites de taxa e RAM)?
+3. **Derivado** — materializar em grafo pré-computado (rápido para consulta, custo de storage) vs. `CONSTRUCT` on-demand (mais simples, mais lento)?
+4. **Estratégia de IDs** — aceitar o autoincremento real e registrar tudo no dicionário, ou reservar faixas por domínio (o choque do Q1 é o sintoma de não haver essa regra)?
+
+Se quiser, fecho o **documento de arquitetura de referência** (uma página: pipeline, ferramentas, contratos de dados, jobs, SLAs de qualidade) já com as respostas a essas 4 perguntas — e em paralelo o lote-piloto do Q1 com a numeração real corrigida.
+Fechado. Entrego os dois: **(1)** o documento de arquitetura de referência v1.0 e **(2)** o lote-piloto do Q1 corrigido. Antes do lote, dois achados da auditoria do dump que **mudam a numeração** — você precisa ver isso primeiro.
+
+---
+
+# Parte 1 — Achados críticos do dump (a "numeração real" que prometi)
+
+O dump provou que **os IDs do plano do chat não batem com a realidade**. Três conflitos diretos:
+
+| Plano do chat | Realidade no dump | Consequência |
+|---|---|---|
+| **P38** = fonte, **P39** = data da coleta, **P40** = status de verificação | **P38** = "Quantidade de Opiniões" (57), **P39** = "Número de Estrelas no Doctoralia" (5), **P40** = "Número de dúvidas Respondidas" (8) — todas com dados legítimos | **Não dá para reaproveitar P38/P39/P40.** Serão criadas **P79 fonte, P80 data da coleta, P81 status de verificação** (IDs a confirmar na auditoria) |
+| **Q2** = classe "médico" | **Q2 = Brazil** (usado em P59 Country) | Toda a numeração Q2–Q83 do chat está deslocada. **Q1 = o médico** (não o hub); **Q48 = a clínica** (não a SBHCI) |
+| Q41 = médico a criar | Q1 **já é** o médico, com 7 grupos de claims e 30+ itens de apoio (Q2–Q48 = especialidades, convênios, serviços) | O lote vira **reforma do Q1 existente**, não criação. 80% do "declarativo" já está lá — falta proveniência |
+
+**Conclusão operacional:** o dump mostrou que o estado atual do Q1 é um ótimo **protótipo declarativo** (specialties, serviços, convênios, avaliações, identificadores) — mas 100% dos claims estão no "estrato 0" (zero referências, zero qualificadores, zero status). O lote-piloto reforma isso.
+
+---
+
+# Parte 2 — Documento de Arquitetura de Referência v1.0
+
+## 2.1 Decisões assumidas (revisáveis — marque discordância)
+
+| # | Decisão | Assumido como |
+|---|---|---|
+| D1 | Escopo do piloto | **Coorte Cardiologia × Campinas/SP (30–50 médicos)** — calibra reconciliação antes do nacional |
+| D2 | Hospedagem | **Self-hosted (Wikibase Suite)** — o próprio `determinar.ia.br` já roda `/w/`, `/tools/quickstatements/` e `query.determinar.ia.br`; manter para produção, sandbox em wikibase.cloud para testes |
+| D3 | Estrato derivado | **Híbrido**: `CONSTRUCT` on-demand para consulta interativa + snapshots materializados para o endpoint LLM (exigência de determinismo do projeto) |
+| D4 | Estratégia de IDs | **Autoincremento natural + registro obrigatório no dicionário canônico**. Proibido reservar faixas — foi a causa raiz do conflito Q1/Q41 |
+
+## 2.2 Pipeline de referência
+
+```
+FONTES                              PROCESSAMENTO                      WIKIBASE                      SAÍDAS
+┌──────────────┐   ┌────────────┐   ┌─────────────┐   ┌────────────┐   ┌───────────────┐   ┌──────────────────┐
+│ Doctoralia   │──▶│ Conector   │──▶│ Normalização│──▶│ Reconciliação│──▶│ Carga (lotes) │──▶│ Templates p/ papel │
+│ (scraping)   │   │ (ETL)      │   │ (acentos,   │   │ (CRM+RQE+   │   │ QS v3 / API   │   │ (operador, médico,│
+│ SIGTAP TABWIN│──▶│ versionado │──▶│ aliases,    │──▶│ CBO+município)│──▶│ GUID determinís│   │  paciente)        │
+│ CNES (CSV)   │──▶│ por compet. │   │ dedupe)     │   │ fila humana  │   │ tico p/ idempot│──▶│ API REST p/ LLM   │
+│ CFM          │──▶│            │   │             │   │ p/ exceções  │   │ ência         │   │ (caminho RQE→CBO→ │
+│ APAC/AMB     │──▶│            │   │             │   │              │   │ P79+P80+P81   │   │  SIGTAP→CID)      │
+└──────────────┘   └────────────┘   └─────────────┘   └────────────┘   └───────────────┘   └──────────────────┘
+                                                    │
+                                                    ▼
+                                          DERIVADO (SPARQL)
+                                          CONSTRUCT on-demand + snapshots
+                                          "autorizado a tratar I21.0?" ← nunca statement manual
+```
+
+## 2.3 Contratos de dados (não-negociáveis)
+
+| Contrato | Regra |
+|---|---|
+| **Claim mínimo** | Todo claim de profissional carrega **P79 fonte + P80 data + P81 status** (via gerador por template, nunca por humano) |
+| **GUID determinístico** | `hash(entidade + propriedade + valor + competência)` — re-rodar o lote **não duplica** claims |
+| **Dicionário canônico** | Nenhum import usa ID não registrado. O conflito P38/P39/P40 entra como verbete "resolvido por P79/P80/P81" |
+| **Batch registry** | Cada lote = registro com fonte, competência SIGTAP, contagem, diff vs. lote anterior, status |
+| **Validade temporal** | Claims normativos carregam vigência (competência início/fim); status "substituído" quando SIGTAP/portaria muda |
+
+## 2.4 Ferramentas
+
+| Camada | Ferramenta |
+|---|---|
+| Carga | **QuickStatements v3** (já instalado em `/tools/quickstatements/`) + `wikibase-integration`/Pywikibot p/ lote pesado |
+| ETL normativo | Parser **TABWIN** (tb_procedimento, tb_cbo, tb_cid, habilitação) · parser **Portaria 472/2008** · ingestão **CNES** |
+| Validação | **EntitySchema/ShEx**: shape "todo claim de profissional exige P79+P80+P81" testado em CI |
+| Query | Blazegraph (`query.determinar.ia.br`) + jobs de snapshot |
+| Reconciliação | Chave composta `CRM+UF → RQE → CBO → CNES → município`; fila humana para exceções |
+
+## 2.5 Jobs e cadência
+
+| Job | Cadência | Saída |
+|---|---|---|
+| ETL declarativo (Doctoralia) | Semanal | Claims com status **Q-declarado** |
+| SIGTAP por competência | A cada competência (mensal) | Atualização de itens/validade |
+| CNES (vínculos CBO) | Mensal | Claims **Q-verificado** (ex.: CBO 2231G1 do Dr.) |
+| Revalidação de vigência | Mensal | Status "substituído"/"expirado" |
+| Snapshot derivado | Semanal | Materialização do "autorizado a tratar X?" |
+
+## 2.6 SLAs de qualidade
+
+- **100%** dos claims com P79+P80+P81 (medido por shape test);
+- **0 duplicação** em re-execução de lote (idempotência);
+- **Divergência declarado × verificado** reportada em até 1 ciclo (<1 semana), com fila de revisão humana;
+- **Tempo de resposta** do endpoint LLM ≤ 500 ms (snapshot materializado);
+- **Rastreabilidade**: todo item derivado aponta para a regra SPARQL que o gerou.
+
+## 2.7 Riscos
+
+| Risco | Mitigação |
+|---|---|
+| Matching de homônimos (1% de erro = centenas de itens poluídos) | Chave composta + fila humana + aliases de reconciliação (caso "Marco Túlio de Souza" já documentado) |
+| Custo de ~100–150M triples no nacional | Coorte primeiro (D1); Blazegraph self-hosted com máquina dedicada |
+| SIGTAP muda por competência | Validade temporal + job de revalidação (2.5) |
+| Humanos esquecem proveniência | Proibido claim manual em produção; gerador por template + shape test em CI |
+
+---
+
+# Parte 3 — Lote-piloto Q1 (QuickStatements v3)
+
+> **Antes de rodar:** execute o Passo 0 e substitua os tokens `{{TOKEN}}` pelos IDs reais. Em ASK MODE eu não executo — entrego pronto para você colar.
+
+## Passo 0 — Auditoria (2 min)
+
+```sparql
+SELECT ?item ?label WHERE { ?item rdfs:label ?label . FILTER(LANG(?label) = "pt") } ORDER BY ?item
+SELECT ?prop ?label WHERE { ?prop a wikibase:Property ; rdfs:label ?label . FILTER(LANG(?label) = "pt") } ORDER BY ?prop
+```
+
+Guarde: **último ID de item**, **último ID de propriedade**, e confirme se **P25/P26/P27** ("tem título de especialista / entidade emissora / ano do título") existem — não constam no dump.
+
+## Passo 1 — Criar 3 propriedades novas (via Special:NewProperty)
+
+| Nova prop | Rótulo | Tipo | Uso |
+|---|---|---|---|
+| `P{{N-1}}` | **Fonte** | Item | URL/item de origem (Doctoralia, CFM, SIGTAP, CNES) |
+| `P{{N-2}}` | **Data da coleta** | Data | Data de captura da informação |
+| `P{{N-3}}` | **Status de verificação** | Item | declarado / verificado / pendente |
+
+## Passo 2 — Criar itens de apoio (CREATE; anote os IDs retornados)
+
+```
+CREATE|mul|Médico|profissional habilitado ao exercício da medicina no Brasil
+CREATE|mul|Sociedade Brasileira de Cardiologia|entidade médica brasileira (SBC)
+CREATE|mul|Sociedade Brasileira de Hemodinâmica e Cardiologia Intervencionista|entidade médica brasileira (SBHCI)
+CREATE|mul|CBO 2251-20|médico cardiologista - Classificação Brasileira de Ocupações
+CREATE|mul|CBO 2231-G1|médico cardiologista intervencionista - CBO
+CREATE|mul|Declarado|status: afirmado por fonte declarativa
+CREATE|mul|Verificado|status: confirmado em fonte normativa oficial
+CREATE|mul|Pendente|status: aguardando verificação normativa
+CREATE|mul|Doctoralia|plataforma declarativa de perfis profissionais de saúde
+CREATE|mul|CFM|Conselho Federal de Medicina
+CREATE|mul|SIGTAP|tabela oficial de procedimentos do SUS
+CREATE|mul|CNES|Cadastro Nacional de Estabelecimentos de Saúde
+```
+
+## Passo 3 — Corrigir proveniência dos claims EXISTENTES (GUIDs reais do dump)
+
+Formato: `Q1$GUID|P{{N-1}}|Q<FONTE>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<STATUS>`
+
+**Normativos (base de tudo) — pendentes até conferência no CFM/CNES:**
+```
+Q1$7B4FF8B6-88ED-4BC1-9D45-AB23BF770546|P{{N-1}}|Q<CFM>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Pendente>   ← CRM/SP 154031
+Q1$DF6DCD29-C967-4293-A0EB-9BD66CD552D4|P{{N-1}}|Q<CFM>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Pendente>   ← RQE 62002
+```
+
+**Declarativos (originados do Doctoralia — status Declarado):**
+```
+Q1$C271B0AC-C834-48C3-8BC7-F58FB641CF89|P{{N-1}}|Q<Doctoralia>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Declarado>   ← Cardiologista
+Q1$23164345-BABF-4882-9FF9-0E47FF7FB8C2|P{{N-1}}|Q<Doctoralia>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Declarado>   ← Clínico geral
+Q1$8CB18B36-318C-4162-911A-29F2D8A2D271|P{{N-1}}|Q<Doctoralia>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Declarado>   ← Doença arterial coronária
+Q1$51E72FA7-0A0A-4CF8-A4A6-CE7B79E185FC|P{{N-1}}|Q<Doctoralia>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Declarado>   ← Trabalha em Q48 (clínica)
+```
+
+> Os demais claims (P13 restantes, P18, P19 ×26, P23, P28/P29/P36/P71/P72, P38/P39/P40, identificadores) seguem o **mesmo padrão** — substitua o GUID de cada um. Lista completa de GUIDs está no dump que você colou.
+
+## Passo 4 — Claims normativos NOVOS (estrutura que faltava)
+
+```
+Q1|P31|Q<Médico>|P{{N-1}}|Q<CFM>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Verificado>
+Q1|P25|Q<SBC>|P26|Q<CFM>|P27|{{ANO}}|P{{N-1}}|Q<CFM>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Verificado>
+Q1|P25|Q<SBHCI>|P26|Q<CFM>|P27|{{ANO}}|P{{N-1}}|Q<CFM>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Verificado>
+Q1|P4|Q<CBO 2251-20>|P{{N-1}}|Q<CNES>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Pendente>
+Q1|P4|Q<CBO 2231-G1>|P{{N-1}}|Q<CNES>|P{{N-2}}|2026-08-02|P{{N-3}}|Q<Pendente>
+```
+
+> **Regra de ouro preservada:** nenhuma aresta `médico → CID` curada. A pergunta "autorizado a tratar I21.0?" só sai do derivado (abaixo).
+
+## Passo 5 — Estrato derivado (regra que nunca vira statement)
+
+```sparql
+# "Quais CIDs o Dr. X está autorizado a tratar?" — caminho RQE→CBO→SIGTAP→CID
+CONSTRUCT {
+  ?medico wdt:P{{N-4}} ?cid .        # nova prop: "pode tratar" (derivada, materializada em snapshot)
+} WHERE {
+  ?medico wdt:P4 ?cbo .
+  ?proc wdt:P{{N-5}} ?cbo .          # SIGTAP: procedimento exige CBO
+  ?proc wdt:P{{N-6}} ?cid .          # SIGTAP: procedimento indica CID
+  VALUES ?medico { wd:Q1 }
+}
+```
+
+## Passo 6 — Mensagens por papel (templates parametrizados — o fechamento humano)
+
+| Papel | Template (exemplo real do caso angioplastia) |
+|---|---|
+| **Operador/auditor** | "Q1: P44 CRM pendente (não consta no perfil público). CBO 2231-G1 aguarda CNES. Claims P19×26 sem proveniência — lote #2026-08-02 marca P79/P80/P81." |
+| **Médico solicitante** | "Para APAC de angioplastia coronariana primária (0406030049): o executor precisa de RQE em Cardiologia + CBO 2251-20/2231-G1 no CNES. Confirme antes de lançar." |
+| **Paciente** | "O Dr. Marco Túlio (CRM-SP 154031) pode realizar o cateterismo pelo SUS: ele tem o título de especialista em Cardiologia e o registro de intervencionista. O pedido sai pela APAC." |
+
+---
+
+# O que você me devolve para fechar
+
+1. Resultado da **SPARQL do Passo 0** (últimos IDs de item e propriedade + existência de P25/P26/P27);
+2. Se P25/P26/P27 **não** existirem, confirmo a criação no mesmo lote.
+
+Com isso eu gero o JSON/QSC final **sem tokens** e o documento de arquitetura em markdown completo (v1.1 com as decisões que você ajustar). Quer que eu já deixe também o **esqueleto do batch registry** (item de registro de lotes) para entrar no Passo 2?
+
+# Resposta curta
+
+**Sim — mas não por "ser um wiki".** O poder está em três coisas que o seu modelo tem e os concorrentes não: **proveniência atômica** (todo claim tem fonte + data + status), **caminho oficial verificável** (RQE→CBO→SIGTAP→CID, não texto solto) e **dupla saída** (SPARQL para máquinas + templates para humanos). É isso que muda o jogo nas 4 frentes. E em uma delas — a monetária — a resposta é **sim com condições importantes**, que eu vou ser honesto em detalhar.
+
+---
+
+# 1. Para LLMs citarem: sim, é drasticamente superior
+
+O problema central de LLM em saúde é **alucinação**. Um LLM "lembra" que existe a cadeia RQE→CBO→SIGTAP, mas não consegue provar. O seu modelo resolve isso porque transforma o LLM de *memória* em *verificador*:
+
+| Aspecto | Artigo Wikipédia / texto | Doctoralia (HTML solto) | Seu modelo Wikibase |
+|---|---|---|---|
+| Granularidade da citação | Página inteira (parágrafo) | Perfil, sem estrutura | **Claim atômico**: `Q1 P4 CBO 2231-G1 [CNES, 2026-08-02, Verificado]` |
+| Verificabilidade | O texto pode estar desatualizado e ninguém sabe | Sem data, sem fonte | Fonte + data da coleta + status **em cada tripla** |
+| Cadeia de raciocínio | Não existe | Não existe | O caminho inteiro é citável: título SBHCI → CBO 2231-G1 → SIGTAP 0406030049 → CID I21.0 |
+| Versionamento | Histórico de edição de página | Nenhum | Cada claim tem revisão — dá para citar "competência 2026-07" |
+| Consumo por LLM | Parágrafo (ruído) | HTML (ruído) | **Endpoint determinístico**: tool-calling retorna o caminho, não texto |
+
+O que as empresas de saúde exigem de um LLM é **rastreabilidade de decisão** — "por que essa APAC foi autorizada?" O seu modelo devolve a cadeia com proveniência embutida. Isso é o que separa "IA que sugere" de "IA que audita". Na prática: um RAG sobre seu endpoint pode citar *"Verificado em CNES, competência 2026-07, CBO 2231-G1"* — a mesma estrutura que os benchmarks de avaliação de LLM usam (provenance-grounded QA). É a diferença entre o LLM **afirmar** e o LLM **provar**.
+
+---
+
+# 2. Para SEO: sim, mas só se você emitir os sinais certos
+
+Saúde é categoria **YMYL** (Your Money Your Life) no Google — o algoritmo penaliza conteúdo sem sinais de autoridade. Seu modelo é uma mina de E-E-A-T (Experiência, Especialização, Autoridade, Confiança), mas só se você **expuser** isso:
+
+- **JSON-LD schema.org por item**: cada página (`Q1`, procedimento, CID) deve emitir `schema.org/Physician` + `hasCredential` (RQE), `availableService` (procedimentos), `address` (clínica), `aggregateRating` (Doctoralia). Isso é elegível para **rich results** e **knowledge panel** — ninguém na saúde brasileira faz isso com dados verificados.
+- **Entity SEO, não keyword SEO**: você não compete por "cardiologista em Campinas"; você **é a entidade** que o Google (e o Bing/Perplexity/AI Overviews) resolvem para essa query. LLMs e buscadores estão migrando para grafos de entidades — páginas estruturadas e citáveis ganham.
+- **Citação cruzada oficial**: páginas apontando para CFM, SIGTAP, CNES (e recebendo links de volta) são o sinal E-E-A-T mais forte possível em saúde.
+- **AI Overviews / Perplexity / ChatGPT Search**: esses produtos citam **fontes estruturadas e referenciadas** com mais frequência que texto solto. O formato claim+proveniência é exatamente o que eles extraem bem.
+
+O custo disso é baixo (template JSON-LD no MediaWiki); o ROI é alto. Mas atenção: SEO aqui é consequência da **estrutura pública**, não o objetivo. Se o grafo ficar fechado (só API), você perde essa frente.
+
+---
+
+# 3. Utilidade pública e privada: o ponto mais forte do modelo
+
+**Pública:**
+- Paciente pergunta "esse médico **pode** fazer minha angioplastia pelo SUS?" → resposta com caminho oficial, não com "confio no site".
+- Auditor (SUS, TCE, CGU) detecta APAC fraudulenta em minutos: executor sem CBO compatível vira divergência declarado × verificado **automaticamente**.
+- Transparência pública de quem está habilitado a fazer o quê — hoje essa informação existe, mas espalhada em CNES/SIGTAP/CFM incompatíveis entre si.
+
+**Privada:**
+- **Credenciamento hospitalar/clínico**: verificação de RQE+CBO em massa vira serviço.
+- **Operadoras de plano**: montagem e auditoria de rede (o caso Unimed do Dr. Marco Túlio é exemplo real de uso).
+- **Healthtechs**: o endpoint vira o "camada de confiança" para qualquer produto (busca de médicos, telemedicina, autorização de exames).
+- **Forense/legal**: evidência de quem podia fazer o quê em determinada competência — com data de coleta registrada.
+
+O modelo entrega para os dois públicos **da mesma fonte**: humanos recebem templates, máquinas recebem SPARQL/API. Não existe duplicação de manutenção. Isso é o que o diferencia de um site tradicional, que teria que manter versão humana e versão de dados separadas.
+
+---
+
+# 4. Monetária: sim, mas com a régua certa — e vou ser honesto
+
+**Onde o valor NÃO está:** em "vender acesso ao site", em anúncios, ou em "ser a Wikipédia do SUS". Isso não paga a operação.
+
+**Onde o valor ESTÁ (B2B, dados e API):**
+
+| Produto | Comprador | Por que paga |
+|---|---|---|
+| **API de verificação de credencial** (RQE/CBO/título, com status e data) | Operadoras, hospitais, healthtechs, plataformas de telemedicina | Credenciamento manual hoje custa caro e erra; verificação automática com proveniência é auditável |
+| **API de elegibilidade** ("médico X pode executar procedimento Y?") | Gestoras de saúde, softwares de faturamento (TISS/APAC) | Previne glosa/recusa — o cenário da APAC rejeitada vira feature paga |
+| **Licenciamento do grafo** (snapshot materializado) | LLM labs, RAG providers, pesquisadores | Dado de saúde **verificado e fresco** é raro; mercado de licenciamento de dados para LLM cresce |
+| **Relatórios de divergência** (declarado × verificado) | Auditorias, compliance, seguradoras | Detecta fraude — e em saúde, fraude medida em bilhões |
+| **White-label** | Operadoras, marketplaces de saúde | Rede própria verificada sem montar time de dados |
+
+**Os 3 fatores que definem se isso vira moeda:**
+
+1. **O moat é a proveniência + frescor.** Qualquer um pode scrapear o Doctoralia (e o dump mostra que o seu Q1 já foi, inclusive). O que não é replicável rápido: claims com fonte oficial, data da coleta e status, atualizados por competência. Isso é um ativo que **compõe** (mais médicos = mais valor para todos) — moat de rede, não de código.
+2. **O custo é de manutenção, não de construção.** A arquitetura que montamos é uma vez; o custo recorrente é rodar ETLs por competência. Lucratividade depende de contratos B2B, não de tráfego.
+3. **Legal é o limite real, não a técnica.** Três pontos que **precisam** entrar no doc: **LGPD** (dados de médicos são pessoais; CFM publica CRM publicamente, mas agregação + API exige base legal e cuidado com dados sensíveis), **ToS/licença do Doctoralia** (o que você pode re-exportar é limitado — por isso o estrato declarativo precisa de status e o normativo vem de fontes públicas), e **uso de dados públicos governamentais** (CNES/SIGTAP/CFM são públicos, mas cada um tem termos). O "verificado" é também a sua proteção jurídica: você só afirma o que a fonte oficial afirma.
+
+**Veredito honesto:** como produto de consumo, não vale. Como **camada de dados B2B para um setor regulado, fragmentado e que paga caro por erro**, vale — e a escassez real do mercado é exatamente o que você tem: dado de saúde estruturado, verificável e fresco. O Wikibase em si é só a embalagem; o produto é a **proveniência vendável**.
+
+---
+
+# O que isso muda no plano (3 ajustes no doc da arquitetura)
+
+1. **Adicionar camada de saída JSON-LD** no MediaWiki (SEO/entity SEO) — template por item, custo baixo.
+2. **Elevar a API REST determinística a produto principal** (não acessório): ela é ao mesmo tempo o uso LLM, o produto B2B e o ativo licenciável. Documentar contrato público (endpoint, formato de resposta com proveniência, rate limits).
+3. **Adicionar seção de governança legal** (LGPD + licenças de fonte + política de re-exportação do estrato declarativo) antes de qualquer contrato de API.
+
+Quer que eu incorpore essas 3 seções no documento de arquitetura (v1.1) e siga com o lote-piloto do Q1 corrigido? Posso gerar os dois juntos.
